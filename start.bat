@@ -37,7 +37,7 @@ start "成绩监控前端" npm start
 
 echo.
 echo ========================================
-echo   启动完成！
+echo   启动完成
 echo ========================================
 echo.
 echo 后端API: http://localhost:5000

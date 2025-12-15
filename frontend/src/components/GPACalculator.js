@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import './GPACalculator.css';
 
 function GPACalculator({ currentGrades, currentGPA, currentCredits }) {
-  // 从 localStorage 恢复保存的课程数据
   const loadSavedCourses = () => {
     try {
       const saved = localStorage.getItem('virtualCourses');
@@ -17,7 +16,6 @@ function GPACalculator({ currentGrades, currentGPA, currentCredits }) {
   const [courseCredit, setCourseCredit] = useState('');
   const [courseScore, setCourseScore] = useState('');
 
-  // 根据成绩计算绩点（根据教务系统规则 - 分段式）
   const calculateGPAFromScore = (score) => {
     const numScore = parseFloat(score);
     
@@ -32,7 +30,6 @@ function GPACalculator({ currentGrades, currentGPA, currentCredits }) {
     return 0.0;
   };
 
-  // 添加虚拟课程
   const addVirtualCourse = () => {
     if (!courseName.trim() || !courseCredit || !courseScore) {
       alert('请填写完整的课程信息');
@@ -64,7 +61,6 @@ function GPACalculator({ currentGrades, currentGPA, currentCredits }) {
 
     const updatedCourses = [...virtualCourses, newCourse];
     setVirtualCourses(updatedCourses);
-    // 自动保存到 localStorage
     localStorage.setItem('virtualCourses', JSON.stringify(updatedCourses));
     
     setCourseName('');
@@ -72,20 +68,15 @@ function GPACalculator({ currentGrades, currentGPA, currentCredits }) {
     setCourseScore('');
   };
 
-  // 删除虚拟课程
   const removeVirtualCourse = (id) => {
     const updatedCourses = virtualCourses.filter(course => course.id !== id);
     setVirtualCourses(updatedCourses);
-    // 自动保存到 localStorage
     localStorage.setItem('virtualCourses', JSON.stringify(updatedCourses));
   };
 
-  // 计算估算后的GPA和学分
   const calculateEstimatedStats = () => {
-    // 当前真实的加权成绩总和
     const currentWeightedSum = currentGPA * currentCredits;
     
-    // 虚拟课程的总学分和加权成绩总和
     let virtualCreditsSum = 0;
     let virtualWeightedSum = 0;
 
@@ -94,7 +85,6 @@ function GPACalculator({ currentGrades, currentGPA, currentCredits }) {
       virtualWeightedSum += course.credit * course.gpa;
     });
 
-    // 估算后的总学分和GPA
     const estimatedCredits = currentCredits + virtualCreditsSum;
     const estimatedGPA = estimatedCredits > 0 
       ? (currentWeightedSum + virtualWeightedSum) / estimatedCredits 

@@ -2,7 +2,6 @@ import React from 'react';
 import './Dashboard.css';
 
 function Dashboard({ status, dailyGrades, allGrades }) {
-  // 计算平均分
   const calculateAverage = (grades) => {
     if (grades.length === 0) return 0;
     const scores = grades.filter(g => !isNaN(parseFloat(g.成绩))).map(g => parseFloat(g.成绩));

@@ -5,12 +5,10 @@ function GradesList({ grades, dailyGrades }) {
   const [sortBy, setSortBy] = useState('default');
   const [filterText, setFilterText] = useState('');
 
-  // 检查是否是今日新增
   const isNewToday = (grade) => {
     return dailyGrades.some(dg => dg.课程编号 === grade.课程编号);
   };
 
-  // 过滤和排序
   let filteredGrades = grades.filter(grade => 
     grade.课程名称.toLowerCase().includes(filterText.toLowerCase()) ||
     grade.课程编号.toLowerCase().includes(filterText.toLowerCase())

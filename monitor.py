@@ -29,11 +29,9 @@ DAILY_GRADES_FILE = 'daily_grades.json'
 LOGS_FILE = 'monitor_logs.json'
 STATUS_FILE = 'monitor_status.json'
 
-# Flask应用初始化
 app = Flask(__name__, static_folder='frontend/build', static_url_path='')
 CORS(app)
 
-# 全局状态变量
 monitor_status = {
     'is_running': False,
     'last_check_time': None,
@@ -71,42 +69,60 @@ def encrypt_aes(data, key):
 
 
 def uia_login(stu_id, stu_pwd):
-    session = requests.Session()
-    session.get(app_url, headers=headers, verify=False)
-    res = session.get(uia_url, verify=False).text
-    soup = BeautifulSoup(res, 'html.parser')
-    
     try:
-        lt = soup.find('input', {'name': 'lt'})['value']
-        salt = soup.find('input', {'id': 'pwdDefaultEncryptSalt'})['value']
-        dllt = soup.find('input', {'name': 'dllt'})['value']
-    except Exception as e:
-        print(f'✗ 获取登录参数失败: {e}')
+        session = requests.Session()
+        session.get(app_url, headers=headers, verify=False, timeout=10)
+        res = session.get(uia_url, verify=False, timeout=10).text
+        soup = BeautifulSoup(res, 'html.parser')
+        
+        try:
+            lt = soup.find('input', {'name': 'lt'})['value']
+            salt = soup.find('input', {'id': 'pwdDefaultEncryptSalt'})['value']
+            dllt = soup.find('input', {'name': 'dllt'})['value']
+        except Exception as e:
+            print(f'✗ 获取登录参数失败: {e}')
+            return None
+
+        encrypted_pwd = encrypt_aes(stu_pwd, salt)
+        
+        data = {
+            'username': stu_id,
+            'password': encrypted_pwd,
+            'lt': lt,
+            'dllt': dllt,
+            'execution': 'e1s1',
+            '_eventId': 'submit',
+            'rmShown': '1'
+        }
+
+        import time as t
+        captcha_res = requests.get(
+            f'https://uia.njfu.edu.cn/authserver/needCaptcha.html?username={stu_id}&pwdEncrypt2=pwdEncryptSalt&_={int(t.time() * 1000)}',
+            verify=False,
+            timeout=10
+        )
+        
+        if captcha_res.text == 'false':
+            res = session.post(uia_url, data=data, verify=False, allow_redirects=True, timeout=10)
+            if res.status_code == 200 and 'uia.njfu.edu.cn' not in res.url:
+                return session
         return None
-
-    encrypted_pwd = encrypt_aes(stu_pwd, salt)
-    
-    data = {
-        'username': stu_id,
-        'password': encrypted_pwd,
-        'lt': lt,
-        'dllt': dllt,
-        'execution': 'e1s1',
-        '_eventId': 'submit',
-        'rmShown': '1'
-    }
-
-    import time as t
-    captcha_res = requests.get(
-        f'https://uia.njfu.edu.cn/authserver/needCaptcha.html?username={stu_id}&pwdEncrypt2=pwdEncryptSalt&_={int(t.time() * 1000)}',
-        verify=False
-    )
-    
-    if captcha_res.text == 'false':
-        res = session.post(uia_url, data=data, verify=False, allow_redirects=True)
-        if res.status_code == 200 and 'uia.njfu.edu.cn' not in res.url:
-            return session
-    return None
+    except requests.exceptions.SSLError as e:
+        print(f'✗ SSL连接错误: {e}')
+        add_log(f'SSL连接错误，将在下次检查时重试', 'warning')
+        return None
+    except requests.exceptions.Timeout as e:
+        print(f'✗ 连接超时: {e}')
+        add_log(f'连接超时，将在下次检查时重试', 'warning')
+        return None
+    except requests.exceptions.ConnectionError as e:
+        print(f'✗ 网络连接错误: {e}')
+        add_log(f'网络连接错误，将在下次检查时重试', 'warning')
+        return None
+    except Exception as e:
+        print(f'✗ 登录过程发生未知错误: {e}')
+        add_log(f'登录失败: {str(e)}', 'error')
+        return None
 
 
 def query_grades(session):
@@ -165,7 +181,6 @@ def save_history(grades):
 
 
 def load_daily_grades():
-    """加载今日新增成绩"""
     if os.path.exists(DAILY_GRADES_FILE):
         try:
             with open(DAILY_GRADES_FILE, 'r', encoding='utf-8') as f:
@@ -179,7 +194,6 @@ def load_daily_grades():
 
 
 def save_daily_grades(new_grades):
-    """保存今日新增成绩"""
     today = datetime.now().strftime('%Y-%m-%d')
     data = {'date': today, 'grades': new_grades}
     with open(DAILY_GRADES_FILE, 'w', encoding='utf-8') as f:
@@ -187,7 +201,6 @@ def save_daily_grades(new_grades):
 
 
 def add_log(message, level='info'):
-    """添加日志"""
     logs = []
     if os.path.exists(LOGS_FILE):
         try:
@@ -202,20 +215,18 @@ def add_log(message, level='info'):
         'level': level
     }
     logs.insert(0, log_entry)
-    logs = logs[:200]  # 只保留最近200条
+    logs = logs[:200]
     
     with open(LOGS_FILE, 'w', encoding='utf-8') as f:
         json.dump(logs, f, ensure_ascii=False, indent=2)
 
 
 def update_status():
-    """更新状态文件"""
     with open(STATUS_FILE, 'w', encoding='utf-8') as f:
         json.dump(monitor_status, f, ensure_ascii=False, indent=2)
 
 
 def calculate_total_credits(grades):
-    """计算总学分"""
     total_credits = 0.0
     for grade in grades:
         try:
@@ -312,7 +323,6 @@ def send_wechat_notification(new_grade, old_gpa, new_gpa, total_courses):
 
 
 def send_daily_summary(daily_grades, total_courses, current_gpa, gpa_change):
-    """发送每日汇总（22:00）"""
     if not webhook_url:
         print('未配置企业微信webhook地址')
         return
@@ -320,7 +330,6 @@ def send_daily_summary(daily_grades, total_courses, current_gpa, gpa_change):
     today = datetime.now().strftime('%-m月%-d日' if os.name != 'nt' else '%#m月%#d日')
     new_count = len(daily_grades)
     
-    # 构建新增课程简要信息
     new_courses_text = ''
     if new_count > 0:
         course_list = [f"{g['课程名称']}{g['成绩']}" for g in daily_grades]
@@ -328,7 +337,6 @@ def send_daily_summary(daily_grades, total_courses, current_gpa, gpa_change):
     else:
         new_courses_text = '无'
     
-    # GPA变化文本
     if gpa_change > 0:
         gpa_text = f"GPA：{current_gpa:.2f} (↑{gpa_change:.2f})"
     elif gpa_change < 0:
@@ -375,24 +383,28 @@ def get_check_interval():
 
 
 def check_grades():
-    print(f'\n[{datetime.now().strftime("%Y-%m-%d %H:%M:%S")}] 开始检查成绩...')
-    add_log('开始检查成绩')
-    
-    session = uia_login(stu_id, stu_pwd)
-    if not session:
-        print('✗ 登录失败，跳过本次检查')
-        add_log('登录失败', 'error')
-        return
-    
-    current_grades = query_grades(session)
-    if not current_grades:
-        print('✗ 获取成绩失败，跳过本次检查')
-        add_log('获取成绩失败', 'error')
+    try:
+        print(f'\n[{datetime.now().strftime("%Y-%m-%d %H:%M:%S")}] 开始检查成绩...')
+        add_log('开始检查成绩')
+        
+        session = uia_login(stu_id, stu_pwd)
+        if not session:
+            print('✗ 登录失败，跳过本次检查')
+            add_log('登录失败，将在下次检查时重试', 'warning')
+            return
+        
+        current_grades = query_grades(session)
+        if not current_grades:
+            print('✗ 获取成绩失败，跳过本次检查')
+            add_log('获取成绩失败，将在下次检查时重试', 'warning')
+            return
+    except Exception as e:
+        print(f'✗ 检查成绩时发生错误: {e}')
+        add_log(f'检查成绩时发生错误: {str(e)}', 'error')
         return
     
     print(f'✓ 成功获取成绩，共 {len(current_grades)} 门课程')
     
-    # 更新状态
     monitor_status['last_check_time'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     monitor_status['total_courses'] = len(current_grades)
     monitor_status['current_gpa'] = calculate_gpa(current_grades)
@@ -415,7 +427,6 @@ def check_grades():
         
         print(f'\n📊 GPA变化: {old_gpa:.2f} → {new_gpa:.2f}')
         
-        # 保存到今日成绩
         daily_grades = load_daily_grades()
         daily_grades.extend(new_courses)
         save_daily_grades(daily_grades)
@@ -434,13 +445,11 @@ def check_grades():
 
 
 def check_daily_push():
-    """检查是否需要发送每日汇总"""
     now = datetime.now()
     today = now.strftime('%Y-%m-%d')
     current_time = now.time()
     target_time = dt_time(22, 0)
     
-    # 检查是否到了22:00且今天还没推送过
     if (current_time.hour == 22 and current_time.minute == 0 and 
         monitor_status.get('last_daily_push_date') != today):
         
@@ -450,7 +459,6 @@ def check_daily_push():
         
         current_gpa = calculate_gpa(all_grades)
         
-        # 计算GPA变化
         gpa_change = 0.0
         if len(daily_grades) > 0:
             grades_without_new = [g for g in all_grades if g['课程编号'] not in [dg['课程编号'] for dg in daily_grades]]
@@ -463,7 +471,6 @@ def check_daily_push():
 
 
 def monitor_thread():
-    """监控线程"""
     global monitor_status
     monitor_status['is_running'] = True
     
@@ -509,10 +516,14 @@ def monitor_thread():
     print('\n✓ 监控系统启动成功！')
     add_log('监控系统启动', 'success')
     
-    try:
-        while monitor_status['is_running']:
+    error_count = 0
+    max_errors = 10
+    
+    while monitor_status['is_running']:
+        try:
             check_grades()
             check_daily_push()
+            error_count = 0
             
             interval = get_check_interval()
             next_check = datetime.now() + timedelta(seconds=interval)
@@ -522,13 +533,25 @@ def monitor_thread():
             next_check_time = next_check.strftime('%H:%M:%S')
             print(f'下次检查时间: {next_check_time} (间隔{interval//60}分钟)')
             time.sleep(interval)
-    except Exception as e:
-        print(f'\n监控线程异常: {e}')
-        add_log(f'监控线程异常: {e}', 'error')
-        monitor_status['is_running'] = False
+        except KeyboardInterrupt:
+            print('\n\n✓ 监控系统已停止')
+            monitor_status['is_running'] = False
+            break
+        except Exception as e:
+            error_count += 1
+            print(f'\n监控循环异常 ({error_count}/{max_errors}): {e}')
+            add_log(f'监控循环异常: {str(e)}', 'error')
+            
+            if error_count >= max_errors:
+                print(f'\n连续错误次数过多，监控系统停止')
+                add_log(f'连续错误{max_errors}次，监控系统停止', 'error')
+                monitor_status['is_running'] = False
+                break
+            else:
+                print(f'将在30秒后重试...')
+                time.sleep(30)
 
 
-# Flask API路由
 @app.route('/')
 def serve_frontend():
     return send_from_directory(app.static_folder, 'index.html')
@@ -536,13 +559,11 @@ def serve_frontend():
 
 @app.route('/api/status')
 def get_status():
-    """获取监控状态"""
     return jsonify(monitor_status)
 
 
 @app.route('/api/grades')
 def get_grades():
-    """获取所有成绩"""
     history = load_history()
     grades = list(history.values())
     return jsonify(grades)
@@ -550,14 +571,12 @@ def get_grades():
 
 @app.route('/api/daily')
 def get_daily_grades():
-    """获取今日新增成绩"""
     daily_grades = load_daily_grades()
     return jsonify(daily_grades)
 
 
 @app.route('/api/logs')
 def get_logs():
-    """获取日志"""
     logs = []
     if os.path.exists(LOGS_FILE):
         try:
@@ -570,7 +589,6 @@ def get_logs():
 
 @app.route('/api/logs/clear', methods=['POST'])
 def clear_logs():
-    """清空日志"""
     try:
         with open(LOGS_FILE, 'w', encoding='utf-8') as f:
             json.dump([], f)
@@ -581,11 +599,9 @@ def clear_logs():
 
 
 def main():
-    # 启动监控线程
     thread = threading.Thread(target=monitor_thread, daemon=True)
     thread.start()
     
-    # 启动Flask服务
     print('\n🌐 启动Web服务器...')
     print('请在浏览器访问前端: http://localhost:3000')
     print('API地址: http://localhost:5000')

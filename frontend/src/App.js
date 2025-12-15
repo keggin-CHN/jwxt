@@ -22,7 +22,7 @@ function App() {
 
   useEffect(() => {
     fetchData();
-    const interval = setInterval(fetchData, 5000); // 每5秒刷新一次
+    const interval = setInterval(fetchData, 5000);
     return () => clearInterval(interval);
   }, []);
 
