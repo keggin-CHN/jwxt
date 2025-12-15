@@ -1,0 +1,161 @@
+.dashboard {
+  display: flex;
+  flex-direction: column;
+  gap: 25px;
+}
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 20px;
+}
+
+.stat-card {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  padding: 25px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 12px;
+  color: white;
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+  transition: transform 0.3s ease;
+}
+
+.stat-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 6px 16px rgba(102, 126, 234, 0.4);
+}
+
+.stat-icon {
+  font-size: 3em;
+}
+
+.stat-content h3 {
+  font-size: 0.9em;
+  opacity: 0.9;
+  margin-bottom: 5px;
+  font-weight: 500;
+}
+
+.stat-value {
+  font-size: 2em;
+  font-weight: bold;
+  margin: 0;
+}
+
+.monitor-status {
+  background: #f8f9fa;
+  border-radius: 12px;
+  padding: 20px;
+}
+
+.monitor-status h2 {
+  color: #333;
+  margin-bottom: 15px;
+  font-size: 1.5em;
+}
+
+.status-info {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.status-item {
+  display: flex;
+  justify-content: space-between;
+  padding: 12px;
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.status-item .label {
+  font-weight: 600;
+  color: #666;
+}
+
+.status-item .value {
+  color: #333;
+}
+
+.status-item .value.running {
+  color: #4ade80;
+  font-weight: bold;
+}
+
+.status-item .value.stopped {
+  color: #f87171;
+  font-weight: bold;
+}
+
+.today-grades {
+  background: #fff3cd;
+  border-radius: 12px;
+  padding: 20px;
+  border: 2px solid #ffc107;
+}
+
+.today-grades h2 {
+  color: #856404;
+  margin-bottom: 15px;
+  font-size: 1.5em;
+}
+
+.today-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.today-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px;
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.course-name {
+  font-weight: 600;
+  color: #333;
+  flex: 1;
+}
+
+.course-score {
+  font-size: 1.3em;
+  font-weight: bold;
+  color: #667eea;
+  margin: 0 15px;
+}
+
+.course-gpa {
+  color: #666;
+}
+
+.chart-container {
+  background: #f8f9fa;
+  border-radius: 12px;
+  padding: 20px;
+}
+
+.chart-container h2 {
+  color: #333;
+  margin-bottom: 20px;
+  font-size: 1.5em;
+}
+
+@media (max-width: 768px) {
+  .stats-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .today-item {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 5px;
+  }
+}
