@@ -1,7 +1,10 @@
-import React from 'react';
+import React, { useState } from 'react';
+import axios from 'axios';
 import './LogsPanel.css';
 
-function LogsPanel({ logs }) {
+function LogsPanel({ logs, onRefresh }) {
+  const [isClearing, setIsClearing] = useState(false);
+
   const getLogIcon = (level) => {
     switch(level) {
       case 'success':
@@ -19,11 +22,41 @@ function LogsPanel({ logs }) {
     return `log-item log-${level}`;
   };
 
+  const handleClearLogs = async () => {
+    if (!window.confirm('确定要清空所有日志吗？')) {
+      return;
+    }
+
+    setIsClearing(true);
+    try {
+      const response = await axios.post('/api/logs/clear');
+      if (response.data.success) {
+        alert('日志已清空');
+        if (onRefresh) {
+          onRefresh();
+        }
+      }
+    } catch (error) {
+      alert('清空日志失败：' + error.message);
+    } finally {
+      setIsClearing(false);
+    }
+  };
+
   return (
     <div className="logs-panel">
       <div className="panel-header">
-        <h2>📝 运行日志</h2>
-        <p className="log-count">共 {logs.length} 条记录</p>
+        <div>
+          <h2>📝 运行日志</h2>
+          <p className="log-count">共 {logs.length} 条记录</p>
+        </div>
+        <button 
+          onClick={handleClearLogs} 
+          disabled={isClearing || logs.length === 0}
+          className="clear-logs-btn"
+        >
+          {isClearing ? '清空中...' : '🗑️ 清空日志'}
+        </button>
       </div>
 
       <div className="logs-container">

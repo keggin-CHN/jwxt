@@ -4,6 +4,7 @@ import './App.css';
 import Dashboard from './components/Dashboard';
 import GradesList from './components/GradesList';
 import LogsPanel from './components/LogsPanel';
+import GPACalculator from './components/GPACalculator';
 
 function App() {
   const [status, setStatus] = useState({
@@ -64,6 +65,12 @@ function App() {
           📚 成绩列表
         </button>
         <button 
+          className={activeTab === 'calculator' ? 'active' : ''} 
+          onClick={() => setActiveTab('calculator')}
+        >
+          🎯 绩点估算
+        </button>
+        <button 
           className={activeTab === 'logs' ? 'active' : ''} 
           onClick={() => setActiveTab('logs')}
         >
@@ -85,8 +92,15 @@ function App() {
             dailyGrades={dailyGrades}
           />
         )}
+        {activeTab === 'calculator' && (
+          <GPACalculator 
+            currentGrades={grades}
+            currentGPA={status.current_gpa}
+            currentCredits={status.total_credits || 0}
+          />
+        )}
         {activeTab === 'logs' && (
-          <LogsPanel logs={logs} />
+          <LogsPanel logs={logs} onRefresh={fetchData} />
         )}
       </main>
 

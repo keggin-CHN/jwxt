@@ -30,7 +30,15 @@ function Dashboard({ status, dailyGrades, allGrades }) {
         </div>
 
         <div className="stat-card">
-          <div className="stat-icon">🆕</div>
+          <div className="stat-icon">📊</div>
+          <div className="stat-content">
+            <h3>总学分</h3>
+            <p className="stat-value">{status.total_credits ? status.total_credits.toFixed(1) : '0.0'}</p>
+          </div>
+        </div>
+
+        <div className="stat-card">
+          <div className="stat-icon">⭐</div>
           <div className="stat-content">
             <h3>今日新增</h3>
             <p className="stat-value">{status.today_new_count}</p>

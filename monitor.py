@@ -40,6 +40,7 @@ monitor_status = {
     'next_check_time': None,
     'total_courses': 0,
     'current_gpa': 0.0,
+    'total_credits': 0.0,
     'today_new_count': 0,
     'last_daily_push_date': None
 }
@@ -213,6 +214,19 @@ def update_status():
         json.dump(monitor_status, f, ensure_ascii=False, indent=2)
 
 
+def calculate_total_credits(grades):
+    """计算总学分"""
+    total_credits = 0.0
+    for grade in grades:
+        try:
+            credit = float(grade['学分'])
+            if credit > 0:
+                total_credits += credit
+        except (ValueError, KeyError):
+            continue
+    return round(total_credits, 1)
+
+
 def calculate_gpa(grades):
     total_credits = 0.0
     total_grade_points = 0.0
@@ -382,6 +396,7 @@ def check_grades():
     monitor_status['last_check_time'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     monitor_status['total_courses'] = len(current_grades)
     monitor_status['current_gpa'] = calculate_gpa(current_grades)
+    monitor_status['total_credits'] = calculate_total_credits(current_grades)
     
     history = load_history()
     new_courses = []
@@ -474,8 +489,10 @@ def monitor_thread():
             if grades:
                 save_history(grades)
                 gpa = calculate_gpa(grades)
+                total_credits = calculate_total_credits(grades)
                 monitor_status['total_courses'] = len(grades)
                 monitor_status['current_gpa'] = gpa
+                monitor_status['total_credits'] = total_credits
                 print(f'✓ 已记录 {len(grades)} 门课程，当前GPA: {gpa:.2f}')
                 add_log(f'系统初始化：{len(grades)}门课程，GPA: {gpa:.2f}', 'success')
             else:
@@ -549,6 +566,18 @@ def get_logs():
         except:
             logs = []
     return jsonify(logs)
+
+
+@app.route('/api/logs/clear', methods=['POST'])
+def clear_logs():
+    """清空日志"""
+    try:
+        with open(LOGS_FILE, 'w', encoding='utf-8') as f:
+            json.dump([], f)
+        add_log('日志已清空', 'info')
+        return jsonify({'success': True, 'message': '日志已清空'})
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500
 
 
 def main():
