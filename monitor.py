@@ -15,9 +15,9 @@ from flask import Flask, jsonify, send_from_directory
 from flask_cors import CORS
 
 urllib3.disable_warnings()
-stu_id = "2410403132"
-stu_pwd = "Zhouwenjie@790920"
-webhook_url = "https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=bddf9ca2-b763-4a56-9014-2ecaa7fc712a" 
+stu_id = ""
+stu_pwd = ""
+webhook_url = "" 
 app_url = 'http://jwxt.njfu.edu.cn/sso.jsp'
 uia_url = f'https://uia.njfu.edu.cn/authserver/login?service={app_url}'
 headers = {
@@ -648,3 +648,4 @@ if __name__ == '__main__':
         exit(1)
     
     main()
+
