@@ -2,6 +2,8 @@
 
 再也不用心惊胆战地每天打开800次教务系统查成绩了✨(★ᴗ★) 
 
+在线demo:https://gpa.keggin.me
+
 ![Version](https://img.shields.io/badge/version-2.0.0-blue)
 ![Python](https://img.shields.io/badge/python-3.7+-green)
 ![React](https://img.shields.io/badge/react-18.2.0-61dafb)
