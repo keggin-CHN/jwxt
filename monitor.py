@@ -48,9 +48,27 @@ def random_string(length):
 
 
 # NJFU CAS 新版 RSA 公钥 (2025+ 从 login.js 提取)
-_CAS_RSA_N = int("008aed7e057fe8f14c73550b0e6467b023616ddc8fa91846d2613cdb7f7621e3cada4cd5d812d627af6b87727ade4e26d26208b7326815941492b2204c3167ab2d53df1e3a2c9153bdb7c8c2e968df97a5e7e01cc410f92c4c2c2fba529b3ee988ebc1fca99ff5119e036d732c368acf8beba01aa2fdafa45b21e4de4928d0d403", 16)
-_CAS_RSA_E = 0x10001
-
+def encrypt_aes(data, key):
+    """CAS AES-CBC encrypt (pwdDefaultEncryptSalt)"""
+    if not key:
+        return data
+    try:
+        from Crypto.Cipher import AES
+        from Crypto.Util.Padding import pad
+        import base64
+        key = key.strip()
+        random_prefix = random_string(64)
+        iv = random_string(16)
+        plaintext = random_prefix + data
+        key_bytes = key.encode("utf-8")
+        iv_bytes = iv.encode("utf-8")
+        plaintext_bytes = plaintext.encode("utf-8")
+        cipher = AES.new(key_bytes, AES.MODE_CBC, iv_bytes)
+        ciphertext = cipher.encrypt(pad(plaintext_bytes, AES.block_size))
+        return base64.b64encode(ciphertext).decode("utf-8")
+    except Exception as e:
+        print(f"Encryption error: {e}")
+        return data
 def encrypt_aes(data, key=None):
     """CAS 新版 RSA 加密 (textbook RSA，与前端 security.js RSAUtils 一致)"""
     try:
@@ -75,27 +93,25 @@ def uia_login(stu_id, stu_pwd):
         res = session.get(uia_url, verify=False, timeout=10).text
         soup = BeautifulSoup(res, 'html.parser')
         
-        try:
-            execution = soup.find('input', {'name': 'execution'})['value']
-        except Exception as e:
-            print(f'✗ 获取登录参数失败: {e}')
-            return None
 
-        encrypted_pwd = encrypt_aes(stu_pwd)
-        
+        try:
+            lt = soup.find('input', {'name': 'lt'})['value']
+            salt = soup.find('input', {'id': 'pwdDefaultEncryptSalt'})['value']
+            dllt = soup.find('input', {'name': 'dllt'})['value']
+        except Exception as e:
+            print(f'\u2717 Login params error: {e}')
+            return None
+        encrypted_pwd = encrypt_aes(stu_pwd, salt)
         data = {
             'username': stu_id,
             'password': encrypted_pwd,
-            'execution': execution,
-            'encrypted': 'true',
+            'lt': lt,
+            'dllt': dllt,
+            'execution': 'e1s1',
             '_eventId': 'submit',
-            'loginType': '1',
-            'submit': '登 录'
+            'rmShown': '1'
         }
-
-        import time as t
-        # needCaptcha 已返回 404 (2025+ CAS 升级后不再提供此接口)
-        # 直接提交登录，忽略验证码检查
+        # needCaptcha returns 404 (CAS upgraded), skip captcha check
         res = session.post(uia_url, data=data, verify=False, allow_redirects=True, timeout=10)
         if res.status_code == 200 and 'uia.njfu.edu.cn' not in res.url:
             return session
