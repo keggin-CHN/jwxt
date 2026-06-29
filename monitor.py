@@ -94,16 +94,11 @@ def uia_login(stu_id, stu_pwd):
         }
 
         import time as t
-        captcha_res = requests.get(
-            f'https://uia.njfu.edu.cn/authserver/needCaptcha.html?username={stu_id}&_={int(t.time() * 1000)}',
-            verify=False,
-            timeout=10
-        )
-        
-        if captcha_res.text == 'false':
-            res = session.post(uia_url, data=data, verify=False, allow_redirects=True, timeout=10)
-            if res.status_code == 200 and 'uia.njfu.edu.cn' not in res.url:
-                return session
+        # needCaptcha 已返回 404 (2025+ CAS 升级后不再提供此接口)
+        # 直接提交登录，忽略验证码检查
+        res = session.post(uia_url, data=data, verify=False, allow_redirects=True, timeout=10)
+        if res.status_code == 200 and 'uia.njfu.edu.cn' not in res.url:
+            return session
         return None
     except requests.exceptions.SSLError as e:
         print(f'✗ SSL连接错误: {e}')
