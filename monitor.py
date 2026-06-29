@@ -4,8 +4,6 @@ import urllib3
 from datetime import datetime, time as dt_time, timedelta
 import random
 import string
-from Crypto.Cipher import AES
-from Crypto.Util.Padding import pad
 import base64
 import time
 import json
@@ -49,20 +47,22 @@ def random_string(length):
     return ''.join(random.choice(chars) for _ in range(length))
 
 
-def encrypt_aes(data, key):
-    if not key:
-        return data
+# NJFU CAS 新版 RSA 公钥 (2025+ 从 login.js 提取)
+_CAS_RSA_N = int("008aed7e057fe8f14c73550b0e6467b023616ddc8fa91846d2613cdb7f7621e3cada4cd5d812d627af6b87727ade4e26d26208b7326815941492b2204c3167ab2d53df1e3a2c9153bdb7c8c2e968df97a5e7e01cc410f92c4c2c2fba529b3ee988ebc1fca99ff5119e036d732c368acf8beba01aa2fdafa45b21e4de4928d0d403", 16)
+_CAS_RSA_E = 0x10001
+
+def encrypt_aes(data, key=None):
+    """CAS 新版 RSA 加密 (textbook RSA，与前端 security.js RSAUtils 一致)"""
     try:
-        key = key.strip()
-        random_prefix = random_string(64)
-        iv = random_string(16)
-        plaintext = random_prefix + data
-        key_bytes = key.encode('utf-8')
-        iv_bytes = iv.encode('utf-8')
-        plaintext_bytes = plaintext.encode('utf-8')
-        cipher = AES.new(key_bytes, AES.MODE_CBC, iv_bytes)
-        ciphertext = cipher.encrypt(pad(plaintext_bytes, AES.block_size))
-        return base64.b64encode(ciphertext).decode('utf-8')
+        cc = [ord(c) for c in data]
+        cs = 126
+        while len(cc) % cs:
+            cc.append(0)
+        m = 0
+        for i in range(0, cs, 2):
+            m += (cc[i] + cc[i + 1] * 256) * (65536 ** (i // 2))
+        c = pow(m, _CAS_RSA_E, _CAS_RSA_N)
+        return format(c, '0256x')
     except Exception as e:
         print(f'加密错误: {e}')
         return data
@@ -76,28 +76,26 @@ def uia_login(stu_id, stu_pwd):
         soup = BeautifulSoup(res, 'html.parser')
         
         try:
-            lt = soup.find('input', {'name': 'lt'})['value']
-            salt = soup.find('input', {'id': 'pwdDefaultEncryptSalt'})['value']
-            dllt = soup.find('input', {'name': 'dllt'})['value']
+            execution = soup.find('input', {'name': 'execution'})['value']
         except Exception as e:
             print(f'✗ 获取登录参数失败: {e}')
             return None
 
-        encrypted_pwd = encrypt_aes(stu_pwd, salt)
+        encrypted_pwd = encrypt_aes(stu_pwd)
         
         data = {
             'username': stu_id,
             'password': encrypted_pwd,
-            'lt': lt,
-            'dllt': dllt,
-            'execution': 'e1s1',
+            'execution': execution,
+            'encrypted': 'true',
             '_eventId': 'submit',
-            'rmShown': '1'
+            'loginType': '1',
+            'submit': '登 录'
         }
 
         import time as t
         captcha_res = requests.get(
-            f'https://uia.njfu.edu.cn/authserver/needCaptcha.html?username={stu_id}&pwdEncrypt2=pwdEncryptSalt&_={int(t.time() * 1000)}',
+            f'https://uia.njfu.edu.cn/authserver/needCaptcha.html?username={stu_id}&_={int(t.time() * 1000)}',
             verify=False,
             timeout=10
         )
@@ -628,7 +626,7 @@ if __name__ == '__main__':
         missing_libs.append('beautifulsoup4')
     
     try:
-        from Crypto.Cipher import AES
+        from Crypto.Cipher import AES  # noqa: unused import kept for compat
     except ImportError:
         missing_libs.append('pycryptodome')
     
